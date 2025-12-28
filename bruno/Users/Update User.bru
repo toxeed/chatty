@@ -1,0 +1,24 @@
+meta {
+  name: Update User
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/users/:id
+  body: json
+  auth: none
+}
+
+params:path {
+  id: 550e8400-e29b-41d4-a716-446655440000
+}
+
+body:json {
+  {
+    "displayName": "John Updated",
+    "photoUri": "https://example.com/new-photo.jpg",
+    "status": "away"
+  }
+}
+

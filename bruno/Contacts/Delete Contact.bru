@@ -1,0 +1,16 @@
+meta {
+  name: Delete Contact
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/contacts/:initiatorId
+  body: none
+  auth: none
+}
+
+params:path {
+  initiatorId: 550e8400-e29b-41d4-a716-446655440000
+}
+

@@ -1,0 +1,23 @@
+meta {
+  name: Accept Friend Request
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/contacts/acceptRequest/79f39409-0829-4d98-8557-c7aed87c1184/945964fc-4c7b-413b-afe1-feae9fae70e4
+  body: none
+  auth: inherit
+}
+
+body:json {
+  {
+    "requester": "945964fc-4c7b-413b-afe1-feae9fae70e4",
+    "recipient": "79f39409-0829-4d98-8557-c7aed87c1184"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

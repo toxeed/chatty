@@ -1,0 +1,15 @@
+meta {
+  name: Get Contact By Id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/contacts/:initiatorId
+  body: none
+  auth: none
+}
+
+params:path {
+  initiatorId: 945964fc-4c7b-413b-afe1-feae9fae70e4
+}

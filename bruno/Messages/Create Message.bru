@@ -1,0 +1,20 @@
+meta {
+  name: Create Message
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/messages
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "sender": "550e8400-e29b-41d4-a716-446655440000",
+    "receiver": "550e8400-e29b-41d4-a716-446655440001",
+    "text": "Hello, how are you?"
+  }
+}
+

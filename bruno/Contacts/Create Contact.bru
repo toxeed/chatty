@@ -1,0 +1,18 @@
+meta {
+  name: Create Contact
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/contacts
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "initiator": "f8c17c84-a1ae-4c08-8494-894532da740e",
+    "target": "945964fc-4c7b-413b-afe1-feae9fae70e4"
+  }
+}

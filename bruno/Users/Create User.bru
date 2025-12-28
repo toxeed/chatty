@@ -1,0 +1,21 @@
+meta {
+  name: Create User
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/users
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "priyanka",
+    "email": "priyanka@chatty.com",
+    "status": "active",
+    "displayName": "Priyanka Singh",
+    "photoUri": "https://ciqnacngjynftanagduf.supabase.co/storage/v1/object/public/profilePictures/priyanka.jpeg"
+  }
+}

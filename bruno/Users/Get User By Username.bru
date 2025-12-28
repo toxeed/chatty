@@ -1,0 +1,16 @@
+meta {
+  name: Get User By Username
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/users/username/:username
+  body: none
+  auth: none
+}
+
+params:path {
+  username: john_doe
+}
+

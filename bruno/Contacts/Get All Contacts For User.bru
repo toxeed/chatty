@@ -1,0 +1,15 @@
+meta {
+  name: Get All Contacts For User
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/contacts/user/:userId
+  body: none
+  auth: none
+}
+
+params:path {
+  userId: 945964fc-4c7b-413b-afe1-feae9fae70e4
+}

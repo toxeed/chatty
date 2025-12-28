@@ -1,0 +1,16 @@
+meta {
+  name: Get Messages By Receiver
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/messages/receiver/:receiverId
+  body: none
+  auth: none
+}
+
+params:path {
+  receiverId: 550e8400-e29b-41d4-a716-446655440000
+}
+

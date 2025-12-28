@@ -1,0 +1,16 @@
+meta {
+  name: Soft Delete Message
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/messages/:id/delete
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 550e8400-e29b-41d4-a716-446655440001
+}
+

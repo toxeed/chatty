@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Backend Service
+  backend:
+    build:
+      context: ./backend/chatty-backend
+      dockerfile: Dockerfile
+    container_name: chatty-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Use 'dev' for H2 database or 'supabase' for PostgreSQL/Supabase
+      - SPRING_PROFILES_ACTIVE=dev
+      # For H2 (default)
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
+      # For PostgreSQL/Supabase (uncomment and set your credentials)
+      # - SPRING_PROFILES_ACTIVE=supabase
+      # - SUPABASE_HOST=your-project.supabase.co
+      # - SUPABASE_PORT=5432
+      # - SUPABASE_DB=postgres
+      # - SUPABASE_USER=postgres
+      # - SUPABASE_PASSWORD=your-password
+    networks:
+      - chatty-network
+    depends_on:
+      - postgres
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend/chatty-frontend
+      dockerfile: Dockerfile
+    container_name: chatty-frontend
+    ports:
+      - "5173:5173"
+    networks:
+      - chatty-network
+    depends_on:
+      - backend
+
+  # PostgreSQL Database (for future use)
+  postgres:
+    image: postgres:16-alpine
+    container_name: chatty-postgres
+    environment:
+      POSTGRES_DB: chatty_db
+      POSTGRES_USER: chatty_user
+      POSTGRES_PASSWORD: chatty_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chatty-network
+
+networks:
+  chatty-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+

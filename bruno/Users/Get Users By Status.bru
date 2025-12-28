@@ -1,0 +1,16 @@
+meta {
+  name: Get Users By Status
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/users/status/:status
+  body: none
+  auth: none
+}
+
+params:path {
+  status: active
+}
+

@@ -1,0 +1,16 @@
+meta {
+  name: Get Contacts By Target
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/contacts/target/:targetId
+  body: none
+  auth: none
+}
+
+params:path {
+  targetId: 550e8400-e29b-41d4-a716-446655440001
+}
+

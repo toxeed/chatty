@@ -1,0 +1,23 @@
+meta {
+  name: Send Friend Request
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/contacts/sendRequest
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "requester": "945964fc-4c7b-413b-afe1-feae9fae70e4",
+    "recipient": "79f39409-0829-4d98-8557-c7aed87c1184"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

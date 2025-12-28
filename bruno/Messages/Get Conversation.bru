@@ -1,0 +1,17 @@
+meta {
+  name: Get Conversation
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/messages/conversation?user1=:user1&user2=:user2
+  body: none
+  auth: none
+}
+
+params:query {
+  user1: 550e8400-e29b-41d4-a716-446655440000
+  user2: 550e8400-e29b-41d4-a716-446655440001
+}
+
