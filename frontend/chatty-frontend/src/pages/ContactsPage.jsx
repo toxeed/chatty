@@ -19,8 +19,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ContactsIcon from '@mui/icons-material/Contacts'
 import PersonIcon from '@mui/icons-material/Person'
-
-const API_BASE_URL = 'http://localhost:8080/api'
+import { API_BASE_URL } from '../config'
 
 function ContactsPage() {
   const { userId } = useParams()

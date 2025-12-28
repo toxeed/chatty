@@ -1,0 +1,21 @@
+# Render Blueprint - Deploy chatty-backend
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: chatty-backend
+    runtime: docker
+    dockerfilePath: ./backend/chatty-backend/Dockerfile
+    dockerContext: ./backend/chatty-backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Set this manually in Render dashboard
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false  # Set to your Vercel frontend URL
+    healthCheckPath: /api/health
+
