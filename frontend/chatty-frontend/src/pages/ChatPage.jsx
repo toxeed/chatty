@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Container,
   Box,
@@ -9,43 +9,100 @@ import {
   IconButton,
   Avatar,
   TextField,
-  InputAdornment
+  InputAdornment,
+  Chip
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SendIcon from '@mui/icons-material/Send'
 import PersonIcon from '@mui/icons-material/Person'
 import { API_BASE_URL } from '../config'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 function ChatPage() {
-  const { oderId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [newMessage, setNewMessage] = useState('')
-  const [sending, setSending] = useState(false)
   const messagesEndRef = useRef(null)
-  const pollingIdRef = useRef(0) // Unique ID for each polling session
-  const abortControllerRef = useRef(null)
+  const wsConnectedRef = useRef(false)
 
   const currentUser = location.state?.currentUser
   const otherUser = location.state?.otherUser
 
+  // Handle incoming WebSocket messages
+  const handleWebSocketMessage = useCallback((newMessages) => {
+    if (!Array.isArray(newMessages)) {
+      newMessages = [newMessages]
+    }
+
+    setMessages(prev => {
+      let updated = [...prev]
+
+      for (const newMsg of newMessages) {
+        // Check if this is a confirmation for a pending message
+        const pendingIndex = updated.findIndex(m =>
+          m.pending &&
+          m.sender === newMsg.sender &&
+          m.receiver === newMsg.receiver &&
+          m.text === newMsg.text
+        )
+
+        if (pendingIndex !== -1) {
+          // Replace pending message with confirmed message from server
+          updated[pendingIndex] = { ...newMsg, pending: false }
+        } else if (!updated.some(m => m.id === newMsg.id)) {
+          // New message from other user, add it
+          updated.push(newMsg)
+        }
+      }
+
+      return updated.sort((a, b) => {
+        // Sort by createdAt, pending messages (with tempId) go to the end
+        const aTime = a.createdAt || Date.now()
+        const bTime = b.createdAt || Date.now()
+        return aTime - bTime
+      })
+    })
+  }, [])
+
+  // Initialize WebSocket connection
+  const {
+    connect: wsConnect,
+    disconnect: wsDisconnect,
+    sendMessage: wsSendMessage,
+    isConnected,
+    connectionError
+  } = useWebSocket({
+    userId: currentUser?.id,
+    onMessage: handleWebSocketMessage,
+    onConnect: () => {
+      console.log('Chat WebSocket connected')
+      wsConnectedRef.current = true
+    },
+    onDisconnect: () => {
+      console.log('Chat WebSocket disconnected')
+      wsConnectedRef.current = false
+    },
+    onError: (err) => {
+      console.error('Chat WebSocket error:', err)
+    }
+  })
+
   useEffect(() => {
     if (currentUser && otherUser) {
       fetchMessages()
+      // Connect to WebSocket after fetching initial messages
+      wsConnect()
     }
 
-    // Cleanup: stop polling when component unmounts or deps change
+    // Cleanup: disconnect WebSocket when component unmounts
     return () => {
-      // Increment polling ID to invalidate any running poll loops
-      pollingIdRef.current += 1
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      console.log('ChatPage unmounting, disconnecting WebSocket')
+      wsDisconnect()
     }
-  }, [currentUser, otherUser])
+  }, [currentUser?.id, otherUser?.id])
 
   useEffect(() => {
     scrollToBottom()
@@ -69,9 +126,6 @@ function ChatPage() {
       const sorted = data.sort((a, b) => a.createdAt - b.createdAt)
       setMessages(sorted)
       setError(null)
-
-      // Start long polling after initial fetch
-      startPolling(sorted)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -79,116 +133,46 @@ function ChatPage() {
     }
   }
 
-  const startPolling = (initialMessages) => {
-    // Increment polling ID to cancel any previous polling loops
-    pollingIdRef.current += 1
-    const currentPollingId = pollingIdRef.current
+  // Send message via WebSocket with optimistic update
+  const sendMessage = () => {
+    if (!newMessage.trim()) return
 
-    // Get the epoch timestamp of the last message, or use current time if no messages
-    const getLastMessageTime = (msgs) => {
-      if (msgs && msgs.length > 0 && msgs[msgs.length - 1].createdAt) {
-        return msgs[msgs.length - 1].createdAt  // Already epoch milliseconds
-      }
-      return Date.now()  // Current time as epoch
+    const messageText = newMessage.trim()
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+
+    // Optimistically add the message immediately
+    const pendingMessage = {
+      id: tempId,
+      sender: currentUser.id,
+      receiver: otherUser.id,
+      text: messageText,
+      createdAt: Date.now(),
+      pending: true,
+      failed: false
     }
 
-    const poll = async (lastTime) => {
-      // Stop if this polling session has been superseded
-      if (currentPollingId !== pollingIdRef.current) {
-        console.log('Polling session cancelled')
-        return
-      }
+    setMessages(prev => [...prev, pendingMessage])
+    setNewMessage('')
 
-      // Safety check - ensure lastTime is valid
-      const safeLastTime = lastTime || Date.now()
-
-      try {
-        // Create abort controller for this request
-        abortControllerRef.current = new AbortController()
-
-        const response = await fetch(
-          `${API_BASE_URL}/messages/poll?user1=${currentUser.id}&user2=${otherUser.id}&since=${safeLastTime}`,
-          { signal: abortControllerRef.current.signal }
-        )
-
-        if (!response.ok) {
-          throw new Error('Polling failed')
-        }
-
-        const newMessages = await response.json()
-
-        // Check again if we should continue (polling might have been cancelled during request)
-        if (currentPollingId !== pollingIdRef.current) return
-
-        if (newMessages.length > 0) {
-          setMessages(prev => {
-            // Avoid duplicates by checking IDs
-            const existingIds = new Set(prev.map(m => m.id))
-            const uniqueNew = newMessages.filter(m => !existingIds.has(m.id))
-            return [...prev, ...uniqueNew]
-          })
-          // Continue polling from the latest message time
-          poll(getLastMessageTime(newMessages))
-        } else {
-          // No new messages, continue polling from same time
-          poll(lastTime)
-        }
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          // Request was aborted (component unmounting), don't restart
-          return
-        }
-        // Check if polling was cancelled
-        if (currentPollingId !== pollingIdRef.current) return
-
-        console.error('Polling error:', err)
-        // Wait a bit before retrying on error
-        setTimeout(() => {
-          if (currentPollingId === pollingIdRef.current) {
-            poll(lastTime)
-          }
-        }, 3000)
-      }
+    if (!isConnected) {
+      // Mark message as failed if not connected
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, pending: false, failed: true } : m
+      ))
+      return
     }
 
-    // Start the polling loop
-    poll(getLastMessageTime(initialMessages))
-  }
+    const success = wsSendMessage(currentUser.id, otherUser.id, messageText)
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || sending) return
-
-    try {
-      setSending(true)
-      const response = await fetch(`${API_BASE_URL}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: currentUser.id,
-          receiver: otherUser.id,
-          text: newMessage.trim()
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
-
-      const sentMessage = await response.json()
-      setMessages(prev => [...prev, sentMessage])
-      setNewMessage('')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSending(false)
+    if (!success) {
+      // Mark message as failed if send failed
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, pending: false, failed: true } : m
+      ))
     }
-  }
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    // If successful, the message will be confirmed when we receive the echo from WebSocket
+    // The handleWebSocketMessage callback will replace the pending message with the confirmed one
   }
 
   // Format epoch timestamp to user's local time
@@ -249,7 +233,7 @@ function ChatPage() {
           <Avatar src={otherUser.photoUri} sx={{ width: 40, height: 40 }}>
             {!otherUser.photoUri && <PersonIcon />}
           </Avatar>
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 'bold' }}>
               {otherUser.displayName || otherUser.username}
             </Typography>
@@ -257,6 +241,17 @@ function ChatPage() {
               @{otherUser.username}
             </Typography>
           </Box>
+          {/* Connection status indicator */}
+          <Chip
+            size="small"
+            label={isConnected ? 'Live' : 'Connecting...'}
+            sx={{
+              bgcolor: isConnected ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255, 152, 0, 0.8)',
+              color: 'white',
+              fontSize: '0.7rem',
+              height: 24
+            }}
+          />
         </Paper>
 
         {/* Messages Area */}
@@ -273,9 +268,9 @@ function ChatPage() {
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress sx={{ color: '#667eea' }} />
             </Box>
-          ) : error ? (
+          ) : error || connectionError ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>
-              <Typography color="error">{error}</Typography>
+              <Typography color="error">{error || connectionError}</Typography>
             </Box>
           ) : messages.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -305,6 +300,9 @@ function ChatPage() {
                 {/* Messages for this date */}
                 {msgs.map((message) => {
                   const isSender = message.sender === currentUser.id
+                  const isPending = message.pending
+                  const isFailed = message.failed
+
                   return (
                     <Box
                       key={message.id}
@@ -320,20 +318,31 @@ function ChatPage() {
                           p: 1.5,
                           maxWidth: '75%',
                           borderRadius: 2,
-                          bgcolor: isSender ? '#dcf8c6' : 'white',
+                          bgcolor: isFailed
+                            ? '#ffebee'
+                            : isSender
+                              ? '#dcf8c6'
+                              : 'white',
                           borderTopRightRadius: isSender ? 0 : 2,
-                          borderTopLeftRadius: isSender ? 2 : 0
+                          borderTopLeftRadius: isSender ? 2 : 0,
+                          opacity: isPending ? 0.7 : 1
                         }}
                       >
                         <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
                           {message.text}
                         </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{ display: 'block', textAlign: 'right', color: 'text.secondary', mt: 0.5 }}
-                        >
-                          {formatTime(message.createdAt)}
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: isFailed ? 'error.main' : 'text.secondary' }}
+                          >
+                            {isFailed
+                              ? 'Failed to send'
+                              : isPending
+                                ? 'Sending...'
+                                : formatTime(message.createdAt)}
+                          </Typography>
+                        </Box>
                       </Paper>
                     </Box>
                   )
@@ -361,7 +370,12 @@ function ChatPage() {
             placeholder="Type a message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                sendMessage()
+              }
+            }}
             multiline
             maxRows={4}
             sx={{
@@ -370,18 +384,20 @@ function ChatPage() {
                 bgcolor: 'white'
               }
             }}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim() || sending}
-                    sx={{ color: '#667eea' }}
-                  >
-                    <SendIcon />
-                  </IconButton>
-                </InputAdornment>
-              )
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={sendMessage}
+                      disabled={!newMessage.trim()}
+                      sx={{ color: '#667eea' }}
+                    >
+                      <SendIcon />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }
             }}
           />
         </Paper>
