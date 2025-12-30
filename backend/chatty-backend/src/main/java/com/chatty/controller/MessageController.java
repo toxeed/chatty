@@ -75,7 +75,10 @@ public class MessageController {
      * @param user2 second user's UUID
      * @param since epoch timestamp in milliseconds to check for messages after
      * @return List of new messages (empty if timeout with no new messages)
+     * @deprecated Use WebSocket endpoint at /ws instead. Subscribe to /queue/messages/{userId}
+     *             and send messages to /app/messages/send/{sender}/{receiver}
      */
+    @Deprecated
     @GetMapping("/poll")
     public ResponseEntity<List<Message>> pollForNewMessages(
             @RequestParam UUID user1,
