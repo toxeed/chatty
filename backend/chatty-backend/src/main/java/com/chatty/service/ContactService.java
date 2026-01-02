@@ -74,14 +74,19 @@ public class ContactService {
         // Collect all unique user IDs
         Set<UUID> userIds = new HashSet<>();
         Set<UUID> pendingUuids = new HashSet<>();
-        for (Contact contact : contacts) {
-            userIds.add(contact.getTarget());
+
+        if (contacts != null) {
+            for (Contact contact : contacts) {
+                userIds.add(contact.getTarget());
+            }
         }
 
-        for (ContactRequest request : requests) {
-            if(request.getStatus()==ContactRequestStatus.PENDING){
-                userIds.add(request.getRecipient());
-                pendingUuids.add(request.getRecipient());
+        if (requests != null) {
+            for (ContactRequest request : requests) {
+                if(request.getStatus()==ContactRequestStatus.PENDING){
+                    userIds.add(request.getRecipient());
+                    pendingUuids.add(request.getRecipient());
+                }
             }
         }
 
@@ -92,16 +97,19 @@ public class ContactService {
 
         // Build DTOs with user details
         List<ContactDTO> contactDTOs = new ArrayList<>();
-        contactDTOs = contacts.stream()
-                .map(contact -> buildContactDTO(contact, userMap))
-                .collect(Collectors.toList());
+        if (contacts != null) {
+            contactDTOs = contacts.stream()
+                    .map(contact -> buildContactDTO(contact, userMap))
+                    .collect(Collectors.toList());
+        }
 
-        List<ContactDTO> pendingRequestDTOs = requests.stream()
-                .filter(request -> request.getStatus()==ContactRequestStatus.PENDING)
-                .map(request -> buildContactDTO(request, userMap))
-                .collect(Collectors.toList());
-
-        contactDTOs.addAll(pendingRequestDTOs);
+        if (requests != null) {
+            List<ContactDTO> pendingRequestDTOs = requests.stream()
+                    .filter(request -> request.getStatus()==ContactRequestStatus.PENDING)
+                    .map(request -> buildContactDTO(request, userMap))
+                    .collect(Collectors.toList());
+            contactDTOs.addAll(pendingRequestDTOs);
+        }
 
         return contactDTOs;
     }
