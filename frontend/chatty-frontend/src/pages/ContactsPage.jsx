@@ -14,12 +14,14 @@ import {
   IconButton,
   Chip,
   Snackbar,
-  Alert
+  Alert,
+  Tooltip
 } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import LogoutIcon from '@mui/icons-material/Logout'
 import ContactsIcon from '@mui/icons-material/Contacts'
 import PersonIcon from '@mui/icons-material/Person'
 import { API_BASE_URL } from '../config'
+import { supabase } from '../supabase'
 
 function ContactsPage() {
   const { userId } = useParams()
@@ -107,6 +109,17 @@ function ContactsPage() {
     })
   }
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      navigate('/')
+    } catch (err) {
+      console.error('Logout error:', err)
+      // Navigate anyway even if signOut fails
+      navigate('/')
+    }
+  }
+
   return (
     <Container maxWidth="sm">
       <Box
@@ -119,16 +132,18 @@ function ContactsPage() {
           py: 4
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <IconButton
-            onClick={() => navigate('/')}
-            sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', mb: 1 }}>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'white' }}>
             Contacts
           </Typography>
+          <Tooltip title="Logout">
+            <IconButton
+              onClick={handleLogout}
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
+            >
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         {user && (
